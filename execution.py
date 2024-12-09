@@ -255,7 +255,7 @@ from performance import insert_trade_performance
 # In[26]:
 
 
-def execute_strategy(engine=engine, pair='BTCUSDT', interval_seconds=20):
+def execute_strategy(engine, pair='BTCUSDT', interval_seconds=20):
     position = False  # Set initial position state
     
     last_timestamp = None  # Initialize the last timestamp to track changes
@@ -320,15 +320,14 @@ def execute_strategy(engine=engine, pair='BTCUSDT', interval_seconds=20):
 
 
 def strategy_execute(pair):
-    execute_strategy(pair=pair)
+    execute_strategy(engine, pair, 20)
 
-
-# In[ ]:
 
 
 if __name__ == "__main__":
     trading_pair = 'BTCUSDT'
     strategy_execute(trading_pair)
+    print(engine)
 
 
 # In[ ]:

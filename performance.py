@@ -74,7 +74,7 @@ def insert_performance_record(engine, pair, entry_price, exit_price, profit_loss
     with engine.connect() as conn:
         query = text("""
         INSERT INTO bot_performance (timestamp, pair, entry_price, exit_price, profit_loss, total_profit_loss, trade_count, win_count, loss_count, pct_change, cumulative_pct_change, trade_duration)
-        VALUES (CURRENT_TIMESTAMP, :pair, :entry_price, :exit_price, :profit_loss, :total_profit_loss, :trade_count, :win_count, :loss_count, :pct_change, :cumulative_pct_change, :trade_duration);
+        VALUES (DATETIME(CURRENT_TIMESTAMP, '+7 hours'), :pair, :entry_price, :exit_price, :profit_loss, :total_profit_loss, :trade_count, :win_count, :loss_count, :pct_change, :cumulative_pct_change, :trade_duration);
         """)
         conn.execute(query, {
             "pair": pair,

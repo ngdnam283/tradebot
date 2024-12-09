@@ -20,7 +20,7 @@ engine = sqlalchemy.create_engine('sqlite:///TradingData.db')
 
 
 # Function to create a table dynamically based on the pair
-def create_table_for_pair(engine, pair='BTCUSDT', buffer_size):
+def create_table_for_pair(engine, pair, buffer_size):
     """
     Creates a table for the circular buffer with a fixed number of slots.
     """
@@ -182,7 +182,8 @@ def run_websocket_for_pairs(pair):
 
 if __name__ == "__main__":
     trading_pair = 'BTCUSDT'
-    run_websocket_for_pairs(pair)
+    run_websocket_for_pairs(trading_pair)
+    print("websocket version:", websocket.__version__)
 
 
 # In[ ]:
