@@ -262,8 +262,11 @@ def execute_strategy(engine, pair='BTCUSDT', interval_seconds=20):
     last_timestamp = None  # Initialize the last timestamp to track changes
 
     while True:
-        df = fetch_closest_rows(engine, pair)
+        # Wait briefly before checking again (polling every 1 second)
+        time.sleep(interval_seconds)
+
         
+        df = fetch_closest_rows(engine, pair)
         # Skip if the DataFrame is empty
         if df.empty:
             print(f"No data available for {pair}. Skipping iteration...")
@@ -319,8 +322,6 @@ def execute_strategy(engine, pair='BTCUSDT', interval_seconds=20):
                     except Exception as e:
                         print("Error placing sell order:", e)
         
-        # Wait briefly before checking again (polling every 1 second)
-        time.sleep(interval_seconds)
 
 # In[27]:
 
