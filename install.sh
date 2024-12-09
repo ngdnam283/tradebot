@@ -2,7 +2,7 @@
 set -e  # Exit immediately if any command fails
 
 # Define the Python script's filename
-SCRIPT_NAME="test_aws.py"
+SCRIPT_NAME="main.py"
 
 echo "Step 1: Updating package lists"
 sudo apt-get update
