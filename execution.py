@@ -43,13 +43,6 @@ def fetch_closest_rows(engine, pair='BTCUSDT', num_rows=100):
 # In[6]:
 
 
-df = fetch_closest_rows(engine)
-df
-
-
-# In[7]:
-
-
 def fetch_latest_timestamp(engine, pair='BTCUSDT'):
     query = text(f"""
     SELECT timestamp FROM {pair}
@@ -62,28 +55,22 @@ def fetch_latest_timestamp(engine, pair='BTCUSDT'):
     return None
 
 
-# In[8]:
-
-
-fetch_latest_timestamp(engine)
-
-
 # ## Step 2: Function to place an order
 
-# In[10]:
+# In[8]:
 
 
 # !pip install python-dotenv
 
 
-# In[11]:
+# In[9]:
 
 
 from dotenv import load_dotenv
 import os
 
 
-# In[12]:
+# In[10]:
 
 
 load_dotenv()
@@ -91,13 +78,13 @@ api_key = os.getenv('BINANCE_API_KEY')
 api_secret = os.getenv('BINANCE_SECRET_KEY')
 
 
-# In[13]:
+# In[11]:
 
 
 from binance.client import Client
 
 
-# In[14]:
+# In[12]:
 
 
 client = Client(api_key, api_secret, testnet=True)
@@ -107,7 +94,7 @@ client = Client(api_key, api_secret, testnet=True)
 
 # ### Step 3.1: Manipulate data
 
-# In[17]:
+# In[15]:
 
 
 def calculate_MA(data, short_window=9, long_windows=[20, 50, 100]):
@@ -117,22 +104,9 @@ def calculate_MA(data, short_window=9, long_windows=[20, 50, 100]):
     return data
 
 
-# In[18]:
-
-
-df = calculate_MA(df)
-df.info()
-
-
-# In[19]:
-
-
-df
-
-
 # ### Step 3.2: Check for a signal
 
-# In[21]:
+# In[17]:
 
 
 def check_for_buy_signal(data):
@@ -152,7 +126,7 @@ def check_for_buy_signal(data):
     return False
 
 
-# In[22]:
+# In[18]:
 
 
 def check_for_sell_signal(data, entry_price, current_price):
@@ -199,13 +173,13 @@ def check_for_sell_signal(data, entry_price, current_price):
 
 # ### Step 3.3: Calculate suitable quantity for trade
 
-# In[24]:
+# In[20]:
 
 
 import math
 
 
-# In[25]:
+# In[21]:
 
 
 # Get current price of a symbol
@@ -217,7 +191,7 @@ def get_price(symbol):
     return float(ticker['price'])
 
 
-# In[26]:
+# In[22]:
 
 
 # Get symbol's trading info (including min quantity and step size)
@@ -229,7 +203,7 @@ def get_symbol_info(symbol):
     return symbol_info
 
 
-# In[27]:
+# In[23]:
 
 
 # Calculate reasonable trade quantity based on price and amount range
@@ -268,23 +242,9 @@ def get_trade_quantity(symbol, amount_range=(10, 20)):
     return rounded_quantity
 
 
-# In[28]:
-
-
-symbol = 'BTCUSDT'
-trade_quantity = get_trade_quantity(symbol)
-print(f"Trade quantity for {symbol}: {trade_quantity}")
-
-
-# In[ ]:
-
-
-
-
-
 # ## Step 4: Execute order
 
-# In[30]:
+# In[25]:
 
 
 import time
@@ -292,7 +252,7 @@ from datetime import datetime
 from performance import insert_trade_performance 
 
 
-# In[31]:
+# In[26]:
 
 
 def execute_strategy(engine=engine, pair='BTCUSDT', interval_seconds=20):
@@ -356,11 +316,19 @@ def execute_strategy(engine=engine, pair='BTCUSDT', interval_seconds=20):
         time.sleep(interval_seconds)
 
 
+# In[27]:
+
+
+def strategy_execute(pair):
+    execute_strategy(pair=pair)
+
+
 # In[ ]:
 
 
 if __name__ == "__main__":
-    execute_strategy()
+    trading_pair = 'BTCUSDT'
+    strategy_execute(trading_pair)
 
 
 # In[ ]:
