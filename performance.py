@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 # In[3]:
 
+engine = sqlalchemy.create_engine('sqlite:///TradingData.db')
 
 def create_performance_table(engine):
     with engine.connect() as conn:
@@ -173,10 +174,11 @@ def get_win_rate(engine):
 
 # In[14]:
 
+def performance_table_create():
+    create_performance_table(engine)
 
 if __name__ == "__main__":
-    engine = sqlalchemy.create_engine('sqlite:///TradingData.db')
-    create_performance_table(engine)
+    performance_table_create()
 
 
 # In[ ]:
