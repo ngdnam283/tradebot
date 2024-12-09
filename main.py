@@ -33,7 +33,7 @@ def main(pair):
 
 if __name__ == "__main__":
     trading_pair = "BTCUSDT"  # Replace with the desired pair
-    performan_table_create()
+    performance_table_create()
     main(trading_pair)
 
 
