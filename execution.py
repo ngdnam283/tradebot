@@ -257,13 +257,19 @@ from performance import insert_trade_performance
 
 def execute_strategy(engine, pair='BTCUSDT', interval_seconds=20):
     position = False  # Set initial position state
-    time.sleep(interval_seconds)
+
     
     last_timestamp = None  # Initialize the last timestamp to track changes
 
     while True:
         df = fetch_closest_rows(engine, pair)
         
+        # Skip if the DataFrame is empty
+        if df.empty:
+            print(f"No data available for {pair}. Skipping iteration...")
+            time.sleep(interval_seconds)  # Wait for the next iteration
+            continue
+
         # Extract the latest timestamp from the DataFrame
         new_timestamp = df['timestamp'].iloc[-1]
 
@@ -314,7 +320,7 @@ def execute_strategy(engine, pair='BTCUSDT', interval_seconds=20):
                         print("Error placing sell order:", e)
         
         # Wait briefly before checking again (polling every 1 second)
-
+        time.sleep(interval_seconds)
 
 # In[27]:
 
