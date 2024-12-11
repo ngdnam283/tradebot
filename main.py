@@ -6,7 +6,7 @@
 
 import threading
 import time
-from execution import strategy_execute  # Import the execution logic from your execution.py
+from execution import strategy_executor  # Import the execution logic from your execution.py
 from data_request import run_websocket_for_pairs  # Import data fetching from your data_request.py
 from performance import performance_table_create
 
@@ -17,7 +17,7 @@ from performance import performance_table_create
 def main(pair):
     # Create threads for data fetching and trading execution
     data_thread = threading.Thread(target=run_websocket_for_pairs, args=(pair,))
-    trade_thread = threading.Thread(target=strategy_execute, args=(pair,))
+    trade_thread = threading.Thread(target=strategy_executor, args=(pair,))
 
     # Start the threads
     data_thread.start()
@@ -32,7 +32,7 @@ def main(pair):
 
 
 if __name__ == "__main__":
-    trading_pair = "BTCUSDT"  # Replace with the desired pair
+    trading_pair = "BTCUSDT"  # Replace with the 
     performance_table_create()
     main(trading_pair)
 

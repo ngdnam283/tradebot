@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 # ## Step 1: Create table
 
-# In[2]:
+
 
 
 import sqlalchemy
@@ -52,8 +49,6 @@ def create_table_for_pair(engine, pair, buffer_size):
 
 
 # ## Step 2: Insert data into table
-
-# In[6]:
 
 
 def get_next_slot(conn, pair):
@@ -185,20 +180,6 @@ if __name__ == "__main__":
     run_websocket_for_pairs(trading_pair)
     print("websocket version:", websocket.__version__)
 
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
 
 
 
