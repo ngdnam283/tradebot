@@ -1,2 +1,9 @@
 # Ignore .env file
 .env
+
+# Ignore notebook
+.ipynb
+
+__pycache__/
+.ipynb_checkpoints/
+

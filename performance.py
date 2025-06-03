@@ -25,7 +25,10 @@ def create_performance_table(engine):
             loss_count INTEGER,
             pct_change REAL,
             cumulative_pct_change REAL DEFAULT 0,
-            trade_duration REAL
+            trade_duration REAL,
+            commission_rate REAL DEFAULT 0.001,  
+            total_money_invested REAL DEFAULT 0,  
+            total_profit REAL DEFAULT 0
         );
         """)
         conn.execute(query)
@@ -48,16 +51,17 @@ def get_latest_row(engine):
 def insert_performance_record(engine, **kwargs):
     with engine.connect() as conn:
         query = text("""
-        INSERT INTO bot_performance (timestamp, pair, entry_price, exit_price, profit_loss, total_profit_loss, trade_count, win_count, loss_count, pct_change, cumulative_pct_change, trade_duration)
-        VALUES (DATETIME(CURRENT_TIMESTAMP, '+7 hours'), :pair, :entry_price, :exit_price, :profit_loss, :total_profit_loss, :trade_count, :win_count, :loss_count, :pct_change, :cumulative_pct_change, :trade_duration);
+        INSERT INTO bot_performance (timestamp, pair, entry_price, exit_price, profit_loss, total_profit_loss, trade_count, win_count, loss_count, pct_change, cumulative_pct_change, trade_duration, commission_rate, total_money_invested, total_profit)
+        VALUES (DATETIME(CURRENT_TIMESTAMP, '+7 hours'), :pair, :entry_price, :exit_price, :profit_loss, :total_profit_loss, :trade_count, :win_count, :loss_count, :pct_change, :cumulative_pct_change, :trade_duration, :commission_rate, :total_money_invested, :total_profit);
         """)
         conn.execute(query, kwargs)
         conn.commit()
         print(f"Performance data for {kwargs['pair']} inserted successfully.")
 
 def insert_trade_performance(engine, pair, entry_time, entry_price, current_price, quantity):
+    commission_rate = 0.001  # Set commission rate to 0.1%
     exit_price = current_price
-    profit_loss = (current_price - entry_price) * quantity
+    profit_loss = (current_price - entry_price) * quantity - (entry_price + current_price) * quantity * commission_rate
     pct_change = (current_price - entry_price) / entry_price * 100
     last_row = get_latest_row(engine)
 
@@ -66,18 +70,22 @@ def insert_trade_performance(engine, pair, entry_time, entry_price, current_pric
         trade_count = 1
         win_count = 1 if profit_loss > 0 else 0
         loss_count = 1 - win_count
-        cumulative_pct_change = pct_change
+        total_money_invested = entry_price * quantity
+        total_profit = profit_loss
     else:
         total_profit_loss = last_row['total_profit_loss'] + profit_loss
         trade_count = last_row['trade_count'] + 1
         win_count = last_row['win_count'] + (1 if profit_loss > 0 else 0)
         loss_count = trade_count - win_count
-        cumulative_pct_change = ((last_row['cumulative_pct_change'] / 100 + 1) * (pct_change / 100 + 1) - 1) * 100
+        total_money_invested = last_row['total_money_invested'] + entry_price * quantity
+        total_profit = last_row['total_profit'] + profit_loss
+
+    cumulative_pct_change = (total_profit / total_money_invested) * 100
 
     current_time = datetime.now().replace(second=0, microsecond=0)
     trade_duration = (current_time - entry_time).total_seconds() / 60
 
-    insert_performance_record(engine, pair=pair, entry_price=entry_price, exit_price=exit_price, profit_loss=profit_loss, total_profit_loss=total_profit_loss, trade_count=trade_count, win_count=win_count, loss_count=loss_count, pct_change=pct_change, cumulative_pct_change=cumulative_pct_change, trade_duration=trade_duration)
+    insert_performance_record(engine, pair=pair, entry_price=entry_price, exit_price=exit_price, profit_loss=profit_loss, total_profit_loss=total_profit_loss, trade_count=trade_count, win_count=win_count, loss_count=loss_count, pct_change=pct_change, cumulative_pct_change=cumulative_pct_change, trade_duration=trade_duration, commission_rate=commission_rate, total_money_invested=total_money_invested, total_profit=total_profit)
 
 def get_total_profit_loss(engine):
     query = text("""
@@ -105,7 +113,3 @@ def performance_table_create():
 
 if __name__ == "__main__":
     performance_table_create()
-
-
-
-

@@ -1,7 +1,10 @@
 import sqlalchemy
 from sqlalchemy import text
 import websocket
+import ssl
+import certifi
 import json
+import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
@@ -85,53 +88,79 @@ def insert_data(engine, pair, timestamp, close, buffer_size):
 def start_websocket(pair, buffer_size, time_interval):
     """
     Start a WebSocket connection to Binance and insert data into the circular buffer.
+    Automatically reconnects if the connection is lost.
     """
-    try:
-        ws = websocket.create_connection(f"wss://stream.binance.com:9443/ws/{pair.lower()}@ticker")
-        print("WebSocket connected successfully!")
-    except websocket.WebSocketException as e:
-        print(f"WebSocketException: {e}")
-        return
-    except Exception as e:
-        print(f"Other error: {e}")
-        return
-    
-    try:
-        last_minute = None
-        last_close_price = None
-        while True:
-            response = json.loads(ws.recv())
-            current_price = float(response["c"])
-            current_time = datetime.now()
-            current_minute = current_time.replace(second=0, microsecond=0)
+    while True:
+        try:
+            print(f"Connecting to WebSocket for pair: {pair.upper()}")
+            sslopt = {"ca_certs": certifi.where()}
+            ws = websocket.create_connection(
+                f"wss://stream.binance.com:9443/ws/{pair.lower()}@ticker",
+                sslopt=sslopt
+            )
+            # ws = websocket.create_connection(f"wss://stream.binance.com:9443/ws/{pair.lower()}@ticker")
+            print("WebSocket connected successfully!")
+        except websocket.WebSocketException as e:
+            print(f"WebSocketException on connect: {e}")
+            time.sleep(5)
+            continue
+        except Exception as e:
+            print(f"Other connection error: {e}")
+            time.sleep(5)
+            continue
 
-            if last_minute is None:
-                last_minute = current_minute
+        try:
+            last_time = None
+            last_close_price = None        
+
+            while True:
+                response = json.loads(ws.recv())
+                current_price = float(response["c"])
+                current_time = datetime.now()
+                current_time_rounded = current_time.replace(
+                    second=(current_time.second // time_interval) * time_interval,
+                    microsecond=0
+                )
+
+                if last_time is None:
+                    last_time = current_time_rounded
+                    last_close_price = current_price
+                    continue
+
+                if current_time_rounded - last_time >= timedelta(seconds=time_interval):
+                    insert_data(engine, pair.upper(), last_time, last_close_price, buffer_size)
+                    last_time = current_time_rounded
+
                 last_close_price = current_price
-                continue
-    
-            if current_minute - last_minute >= timedelta(minutes=time_interval):
-                insert_data(engine, pair.upper(), last_minute, last_close_price, buffer_size)
-                last_minute = current_minute
 
-            last_close_price = current_price
+                # Optional: remove or adjust this delay depending on your needs
+                time.sleep(1)
 
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-    finally:
-        ws.close()
+        except (websocket.WebSocketException, ConnectionResetError) as e:
+            print(f"WebSocket error: {e} — attempting to reconnect in 5 seconds...")
+            time.sleep(5)
+        except Exception as e:
+            print(f"Unexpected error: {e} — attempting to reconnect in 5 seconds...")
+            time.sleep(5)
+        finally:
+            try:
+                ws.close()
+            except:
+                pass  # Ignore errors during cleanup
 
 def run(pair):
     """
     Run the WebSocket for the given trading pair.
     """
     buffer_size = 200
-    time_interval = 1
+    time_interval = 60
     create_table(engine, pair, buffer_size)
     start_websocket(pair, buffer_size, time_interval)
     print("WebSocket started for the pair:", pair)
 
 if __name__ == "__main__":
+
+
     trading_pair = 'BTCUSDT'
     run(trading_pair)
     print("WebSocket version:", websocket.__version__)

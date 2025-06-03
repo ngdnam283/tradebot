@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 import pandas as pd
 import sqlalchemy
 from sqlalchemy import text
@@ -9,7 +6,7 @@ import os
 from binance.client import Client
 import math
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from performance import insert_trade_performance
 
 # Load environment variables from .env file
@@ -23,9 +20,9 @@ client = Client(api_key, api_secret, testnet=True)
 # Initialize the database engine
 engine = sqlalchemy.create_engine('sqlite:///TradingData.db')
 
-def fetch_closest_rows(engine, pair='BTCUSDT', num_rows=100):
+def fetch_recent_rows(engine, pair='BTCUSDT', num_rows=100):
     """
-    Fetch the closest rows from the database for the given trading pair.
+    Fetch the most recent rows from the database for the given trading pair.
     """
     query = text(f"""
     SELECT * FROM {pair}
@@ -39,74 +36,62 @@ def fetch_closest_rows(engine, pair='BTCUSDT', num_rows=100):
     df.set_index('slot', inplace=True)
     return df
 
-def fetch_latest_timestamp(engine, pair='BTCUSDT'):
+def calculate_last_two_MA(data, short_window=9, long_windows=[20, 50, 100]):
     """
-    Fetch the latest timestamp from the database for the given trading pair.
+    Calculate the last two values of moving averages (MA) for the given data.
+    
+    Parameters:
+    data (pd.DataFrame): DataFrame containing the 'close' prices.
+    short_window (int): The window size for the short-term MA, default is 9.
+    long_windows (list): List of window sizes for the long-term MAs, default is [20, 50, 100].
+    
+    Returns:
+    dict: A dictionary containing the last two values of the short-term MA and each long-term MA.
     """
-    query = text(f"""
-    SELECT timestamp FROM {pair}
-    ORDER BY timestamp DESC LIMIT 1;
-    """)
-    with engine.connect() as conn:
-        result = pd.read_sql(query, conn)
-    if not result.empty:
-        return result['timestamp'].iloc[0]
-    return None
-
-def calculate_MA(data, short_window=9, long_windows=[20, 50, 100]):
-    """
-    Calculate moving averages (MA) for the given data.
-    """
-    data['MA9'] = data['close'].rolling(window=short_window).mean()
+    ma_values = {}
+    
+    # Calculate the last two values of the short-term MA
+    ma_values['MA9'] = data['close'].rolling(window=short_window).mean().iloc[-2:].values
+    
+    # Calculate the last two values of each long-term MA
     for window in long_windows:
-        data[f'MA{window}'] = data['close'].rolling(window=window).mean()
-    return data
+        ma_values[f'MA{window}'] = data['close'].rolling(window=window).mean().iloc[-2:].values
+    
+    return ma_values
+
 
 def check_for_buy_signal(data):
     """
-    Check if the MA9 crosses over any of the longer MAs (MA20, MA50, MA100).
+    Check if the buy signal occurs based on:
+    - The MA9 crosses over any of the longer MAs (MA20, MA50, MA100).
     """
-    ma9 = data['MA9'].iloc[-1]
-    ma9_prev = data['MA9'].iloc[-2]
+    ma_values = calculate_last_two_MA(data)
+    ma9_last, ma9_prev = ma_values['MA9']
 
     for window in [20, 50, 100]:
-        ma_long = data[f'MA{window}'].iloc[-1]
-        ma_long_prev = data[f'MA{window}'].iloc[-2]
+        ma_long_last, ma_long_prev = ma_values[f'MA{window}']
         
         # Check for crossover
-        if ma9_prev < ma_long_prev and ma9 > ma_long:
+        if ma9_prev < ma_long_prev and ma9_last > ma_long_last:
             return True
     return False
 
-def check_for_sell_signal(data, entry_price, current_price):
+def check_for_sell_signal(current_price, entry_price, highest_price):
     """
     Check if the sell condition is met based on:
-    - Short MA crossing below Long MA
-    - Profit target (1.3%)
-    - Stop loss (1%)
+    - Fall 1.3% from the highest price.
+    - 1% profit target reached.
     """
-    ma9 = data['MA9'].iloc[-1]
-    ma9_prev = data['MA9'].iloc[-2]
-
-    # Check for crossover (short MA crossing below long MA)
-    for window in [50, 100]:  # MA50, MA100
-        ma_long = data[f'MA{window}'].iloc[-1]
-        ma_long_prev = data[f'MA{window}'].iloc[-2]
-        
-        if ma9_prev > ma_long_prev and ma9 < ma_long:
-            print("Sell signal due to MA crossover: MA9 crossed below MA50 or MA100")
-            return True
-    
-    # Check for profit target (1.3% profit)
-    profit_threshold = 1.013  # 1.3% profit
+    # Check for profit target (1% profit)
+    profit_threshold = 1.01  # 1% profit
     if current_price >= entry_price * profit_threshold:
-        print("Profit target reached: 1.3% profit!")
+        print("Profit target reached: 1% profit!")
         return True
     
-    # Check for stop loss (1% loss)
-    loss_threshold = 0.99  # 1% loss
-    if current_price <= entry_price * loss_threshold:
-        print("Stop loss triggered: 1% loss!")
+    # Check for fall from highest price (1.3% fall)
+    loss_threshold = 0.987  # 1.3% fall
+    if current_price <= highest_price * loss_threshold:
+        print("Sell signal due to 1.3% fall from highest price!")
         return True
     
     return False
@@ -125,7 +110,7 @@ def get_symbol_info(symbol):
     symbol_info = client.get_symbol_info(symbol)
     return symbol_info
 
-def get_trade_quantity(symbol, amount_range=(10, 20)):
+def get_trade_quantity(symbol, amount_range=(10, 50)):
     """
     Calculate the trade quantity within the given amount range, ensuring it's above the minimum.
     """
@@ -148,7 +133,7 @@ def get_trade_quantity(symbol, amount_range=(10, 20)):
     max_quantity = amount_range[1] / price
 
     # Round the required quantity to the nearest step size
-    rounded_quantity = math.floor(max_quantity / step_size) * step_size
+    rounded_quantity = int(math.floor(max_quantity / step_size)) * step_size
 
     # Ensure the quantity doesn't exceed the maximum allowable quantity within the amount range
     if rounded_quantity < min_quantity:
@@ -156,15 +141,16 @@ def get_trade_quantity(symbol, amount_range=(10, 20)):
 
     return rounded_quantity
 
-def execute_strategy(engine, pair='BTCUSDT', interval_seconds=20):
+def execute_trading_strategy(engine, pair='BTCUSDT', interval_seconds=20):
     """
     Execute the trading strategy by checking for buy/sell signals and placing orders.
     """
     position = False  # Set initial position state
     last_timestamp = None  # Initialize the last timestamp to track changes
+    highest_price = None  # Track the highest price since the buy order
 
     while True:
-        df = fetch_closest_rows(engine, pair)
+        df = fetch_recent_rows(engine, pair)
         if df.empty:
             print(f"No data available for {pair}. Skipping iteration...")
             time.sleep(interval_seconds)
@@ -174,43 +160,46 @@ def execute_strategy(engine, pair='BTCUSDT', interval_seconds=20):
         if new_timestamp != last_timestamp:
             last_timestamp = new_timestamp
             print(f"New data detected at {new_timestamp}, executing strategy...")
-            
-            df = calculate_MA(df)
-            
+
+            current_price = df['close'].iloc[-1]
+
             if not position and check_for_buy_signal(df):
                 print("Buy signal detected! Placing order...")
                 quantity = get_trade_quantity(pair)
+                print(f"Trade quantity for {pair}: {quantity}")
                 try:
                     order = client.order_market_buy(symbol=pair, quantity=quantity)
-                    entry_stamp = datetime.now().replace(second=0, microsecond=0)
+                    entry_stamp = datetime.now().replace(second=(datetime.now().second // interval_seconds) * interval_seconds, microsecond=0)
                     position = True
-                    entry_price = df['close'].iloc[-1]
+                    entry_price = float(order['fills'][0]['price'])
+                    highest_price = entry_price  # Initialize highest price
                     print("Order placed successfully:", order)
                 except Exception as e:
                     print("Error placing order:", e)
 
             elif position:
-                current_price = df['close'].iloc[-1]
-                if check_for_sell_signal(df, entry_price, current_price):
-                    print("Sell signal triggered based on crossover, profit/loss conditions. Placing sell order...")
+                highest_price = max(highest_price, current_price)  # Update highest price
+                if check_for_sell_signal(current_price, entry_price, highest_price):
+                    print("Sell signal triggered based on profit/loss conditions. Placing sell order...")
                     try:
                         order = client.order_market_sell(symbol=pair, quantity=quantity)
                         position = False
                         print("Sell order placed successfully:", order)
-                        insert_trade_performance(engine, pair, entry_stamp, entry_price, current_price, quantity)
+                        sell_price = float(order['fills'][0]['price'])
+                        insert_trade_performance(engine, pair, entry_stamp, entry_price, sell_price, quantity)
                     except Exception as e:
                         print("Error placing sell order:", e)
 
         time.sleep(interval_seconds)
 
-def strategy_executor(pair):
+def start_trading_strategy(pair):
     """
-    Execute the trading strategy for the given pair after a delay.
+    Start the trading strategy for the given pair after a delay.
     """
     time.sleep(300)
-    execute_strategy(engine, pair, 20)
+    execute_trading_strategy(engine, pair, 20)
 
 if __name__ == "__main__":
     trading_pair = 'BTCUSDT'
-    strategy_executor(trading_pair)
+    start_trading_strategy(trading_pair)
     print(engine)
