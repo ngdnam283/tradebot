@@ -129,11 +129,18 @@ def get_trade_quantity(symbol, amount_range=(10, 50)):
     if not min_quantity or not step_size:
         raise ValueError("Minimum quantity or step size not found for this symbol.")
 
-    # Calculate the maximum allowable quantity within the amount range
+
     max_quantity = amount_range[1] / price
 
-    # Round the required quantity to the nearest step size
-    rounded_quantity = int(math.floor(max_quantity / step_size)) * step_size
+    # Calculate the number of decimal places in step_size
+    step_precision = abs(int(round(math.log10(step_size))))
+
+    # Round down to nearest step_size
+    rounded_quantity = math.floor(max_quantity / step_size) * step_size
+
+    # Round to correct precision to avoid float quirks
+    rounded_quantity = round(rounded_quantity, step_precision)
+
 
     # Ensure the quantity doesn't exceed the maximum allowable quantity within the amount range
     if rounded_quantity < min_quantity:

@@ -153,7 +153,7 @@ def run(pair):
     Run the WebSocket for the given trading pair.
     """
     buffer_size = 200
-    time_interval = 60
+    time_interval = 20
     create_table(engine, pair, buffer_size)
     start_websocket(pair, buffer_size, time_interval)
     print("WebSocket started for the pair:", pair)

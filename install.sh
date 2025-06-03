@@ -23,7 +23,11 @@ else
     echo "No requirements.txt found, skipping dependencies installation."
 fi
 
-echo "Step 6: Running the Python script"
+echo "Step 6: Stopping any running instances of $SCRIPT_NAME"
+pkill -f "$SCRIPT_NAME" || echo "No running $SCRIPT_NAME process found"
+
+echo "Step 7: Running the Python script"
 nohup python3 "$SCRIPT_NAME" &
+
 
 echo "Setup complete!"
