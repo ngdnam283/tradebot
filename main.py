@@ -25,8 +25,16 @@ def main(pair):
 if __name__ == "__main__":
     performance_table_create()
     pairs = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+
+    pair_threads = []
     for pair in pairs:
-        threading.Thread(target=main, args=(pair,)).start()
+        t = threading.Thread(target=main, args=(pair,))
+        t.start()
+        pair_threads.append(t)
+
+    # Wait for all pair threads to complete (which they never will, so this keeps your program alive)
+    for t in pair_threads:
+        t.join()
 
 
 
