@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Performance Record</title>
+</head>
+<body>
+    <h1>Add New Bot Performance Record</h1>
+    <form method="post">
+        <label>Timestamp (YYYY-MM-DD HH:MM:SS): <input type="text" name="timestamp" required></label><br>
+        <label>Pair: <input type="text" name="pair" required></label><br>
+        <label>Entry Price: <input type="number" step="any" name="entry_price" required></label><br>
+        <label>Exit Price: <input type="number" step="any" name="exit_price" required></label><br>
+        <label>Profit/Loss: <input type="number" step="any" name="profit_loss" required></label><br>
+        <label>Total Profit/Loss: <input type="number" step="any" name="total_profit_loss" required></label><br>
+        <label>Trade Count: <input type="number" name="trade_count" required></label><br>
+        <label>Win Count: <input type="number" name="win_count" required></label><br>
+        <label>Loss Count: <input type="number" name="loss_count" required></label><br>
+        <label>% Change: <input type="number" step="any" name="pct_change" required></label><br>
+        <label>Trade Duration (seconds): <input type="number" step="any" name="trade_duration" required></label><br>
+        <label>Commission Rate: <input type="number" step="any" name="commission_rate" value="0.001"></label><br>
+        <label>Total Money Invested: <input type="number" step="any" name="total_money_invested" value="0"></label><br>
+        <label>Total Profit: <input type="number" step="any" name="total_profit" value="0"></label><br>
+        <button type="submit">Add Record</button>
+    </form>
+    <a href="{{ url_for('index') }}">Back to List</a>
+</body>
+</html>

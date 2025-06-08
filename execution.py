@@ -62,19 +62,18 @@ def calculate_last_two_MA(data, short_window=9, long_windows=[20, 50, 100]):
 
 def check_for_buy_signal(data):
     """
-    Check if the buy signal occurs based on:
-    - The MA9 crosses over any of the longer MAs (MA20, MA50, MA100).
+    Check for a bullish crossover where MA9 crosses above MA20, MA50, or MA100.
     """
     ma_values = calculate_last_two_MA(data)
-    ma9_last, ma9_prev = ma_values['MA9']
+    ma9_prev, ma9_curr = ma_values['MA9']
 
     for window in [20, 50, 100]:
-        ma_long_last, ma_long_prev = ma_values[f'MA{window}']
-        
-        # Check for crossover
-        if ma9_prev < ma_long_prev and ma9_last > ma_long_last:
+        ma_long_prev, ma_long_curr = ma_values[f'MA{window}']
+        if ma9_prev < ma_long_prev and ma9_curr > ma_long_curr:
             return True
+
     return False
+
 
 def check_for_sell_signal(current_price, entry_price, highest_price):
     """
