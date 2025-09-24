@@ -9,12 +9,15 @@
             padding: 20px;
         }
 
+        .table-container {
+            overflow-x: auto;
+        }
+
         table {
             font-size: 12px;
             border-collapse: collapse;
             width: 100%;
-            overflow-x: auto;
-            display: block;
+            min-width: 1200px;
         }
 
         th, td {
@@ -36,95 +39,136 @@
             display: inline-block;
             margin-bottom: 10px;
         }
+
+        .pagination {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .pagination button {
+            margin: 0 5px;
+            padding: 5px 10px;
+        }
     </style>
 </head>
-
 <body>
     <h1>Bot Performance Records</h1>
     <a href="{{ url_for('add_performance') }}">Add New Record</a>
-    <table border="1" cellpadding="5" cellspacing="0">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Timestamp</th>
-                <th>Pair</th>
-                <th>Entry Price</th>
-                <th>Exit Price</th>
-                <th>Profit/Loss</th>
-                <th>Total Profit/Loss</th>
-                <th>Trade Count</th>
-                <th>Win Count</th>
-                <th>Loss Count</th>
-                <th>% Change</th>
-                <th>Trade Duration</th>
-                <th>Commission Rate</th>
-                <th>Total Money Invested</th>
-                <th>Total Profit</th>
-            </tr>
-        </thead>
-        <tbody id="performance-table-body">
-            {% for row in performances %}
-            <tr>
-                <td>{{ row.id }}</td>
-                <td>{{ row.timestamp }}</td>
-                <td>{{ row.pair }}</td>
-                <td>{{ row.entry_price }}</td>
-                <td>{{ row.exit_price }}</td>
-                <td>{{ row.profit_loss }}</td>
-                <td>{{ row.total_profit_loss }}</td>
-                <td>{{ row.trade_count }}</td>
-                <td>{{ row.win_count }}</td>
-                <td>{{ row.loss_count }}</td>
-                <td>{{ row.pct_change }}</td>
-                <td>{{ row.trade_duration }}</td>
-                <td>{{ row.commission_rate }}</td>
-                <td>{{ row.total_money_invested }}</td>
-                <td>{{ row.total_profit }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Timestamp</th>
+                    <th>Pair</th>
+                    <th>Entry Price</th>
+                    <th>Exit Price</th>
+                    <th>Profit/Loss</th>
+                    <th>Total Profit/Loss</th>
+                    <th>Trade Count</th>
+                    <th>Win Count</th>
+                    <th>Loss Count</th>
+                    <th>% Change</th>
+                    <th>Trade Duration</th>
+                    <th>Commission Rate</th>
+                    <th>Total Money Invested</th>
+                    <th>Total Profit</th>
+                </tr>
+            </thead>
+            <tbody id="performance-table-body">
+                <tr><td colspan="15">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <button id="prevPage">Previous</button>
+        <span id="pageInfo"></span>
+        <button id="nextPage">Next</button>
+    </div>
 
     <script>
+        const rowsPerPage = 30;
+        let currentPage = 1;
+        let allData = [];
+
+        function formatNumber(num, decimals = 3) {
+            return Number(num).toFixed(decimals);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('performance-table-body');
+            if (!allData.length) {
+                tbody.innerHTML = '<tr><td colspan="15">No data available</td></tr>';
+                return;
+            }
+
+            const totalPages = Math.ceil(allData.length / rowsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageRows = allData.slice(start, end);
+
+            tbody.innerHTML = pageRows.map(row => `
+                <tr>
+                    <td>${row.id}</td>
+                    <td>${row.timestamp}</td>
+                    <td>${row.pair}</td>
+                    <td>${formatNumber(row.entry_price)}</td>
+                    <td>${formatNumber(row.exit_price)}</td>
+                    <td>${formatNumber(row.profit_loss)}</td>
+                    <td>${formatNumber(row.total_profit_loss)}</td>
+                    <td>${row.trade_count}</td>
+                    <td>${row.win_count}</td>
+                    <td>${row.loss_count}</td>
+                    <td>${formatNumber(row.pct_change)}%</td>
+                    <td>${formatNumber(row.trade_duration)}</td>
+                    <td>${formatNumber(row.commission_rate)}</td>
+                    <td>${formatNumber(row.total_money_invested)}</td>
+                    <td>${formatNumber(row.total_profit)}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
+        }
+
         async function fetchPerformanceData() {
             try {
                 const response = await fetch('/api/performance');
-                const data = await response.json();
+                allData = await response.json();
 
-                const tbody = document.getElementById('performance-table-body');
-                tbody.innerHTML = '';  // Clear existing rows
+                // Sort newest first by timestamp
+                allData.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${row.id}</td>
-                        <td>${row.timestamp}</td>
-                        <td>${row.pair}</td>
-                        <td>${row.entry_price}</td>
-                        <td>${row.exit_price}</td>
-                        <td>${row.profit_loss}</td>
-                        <td>${row.total_profit_loss}</td>
-                        <td>${row.trade_count}</td>
-                        <td>${row.win_count}</td>
-                        <td>${row.loss_count}</td>
-                        <td>${row.pct_change}</td>
-                        <td>${row.trade_duration}</td>
-                        <td>${row.commission_rate}</td>
-                        <td>${row.total_money_invested}</td>
-                        <td>${row.total_profit}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                currentPage = 1; // reset to first page
+                renderTable();
             } catch (error) {
-                console.error('Error fetching performance data:', error);
+                console.error('Error fetching data:', error);
+                document.getElementById('performance-table-body').innerHTML =
+                    '<tr><td colspan="15">Failed to load data</td></tr>';
             }
         }
 
+        // Pagination buttons
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', () => {
+            const totalPages = Math.ceil(allData.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        });
+
         // Initial load
         fetchPerformanceData();
-
-        // Poll every 5 seconds
-        setInterval(fetchPerformanceData, 5000);
     </script>
 </body>
 </html>
